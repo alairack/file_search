@@ -53,9 +53,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.table_widget.setRowCount(19)
         self.table_widget.setColumnCount(4)
         self.table_widget.setHorizontalHeaderLabels(["文件名", "路径", '创建时间', "修改时间"])
-        self.table_widget.setColumnWidth(0, 200)
-        self.table_widget.setColumnWidth(1, 400)
-        self.table_widget.setColumnWidth(2, 250)
+
+        # 下面的方法对于调整大小很重要
+        self.table_widget.horizontalHeader().resizeSections(QtWidgets.QHeaderView.ResizeMode.Stretch)
+
         self.table_widget.doubleClicked.connect(self.table_widget.open_click_file)
         # 右键菜单策略
         # self.table_widget.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.DefaultContextMenu)
@@ -65,7 +66,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.statusBar().showMessage("0个对象")
 
-        vbox_layout.addWidget(self.table_widget)
+        self.hbox_layout2 = QtWidgets.QHBoxLayout()
+        self.hbox_layout2.addWidget(self.table_widget)
+        self.hbox_layout2.addSpacing(400)
+
+        vbox_layout.addLayout(self.hbox_layout2)
         self.setCentralWidget(widget)
         self.history = History(self.combobox)
         self.search_path = None
@@ -103,6 +108,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.table_widget.setItem(i, j, table_cell)
         self.statusBar().showMessage(f"{len(self.file_search_thread.result)}个对象")
         self.search_button.setText("搜索")
+        self.table_widget.horizontalHeader().resizeSections(QtWidgets.QHeaderView.ResizeMode.Stretch)
         self.search_button.setEnabled(True)
         self.file_search_thread.is_running = False
 
@@ -122,7 +128,7 @@ class ShowResultsTable(QtWidgets.QTableWidget):
         super(ShowResultsTable, self).__init__()
 
         self.verticalHeader().setVisible(False)
-        self.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Interactive)
+        self.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Interactive)
         self.horizontalHeader().setStretchLastSection(True)
         self.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
 

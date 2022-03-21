@@ -1,1 +1,2 @@
-pyqt5==5.9
+pyqt5
+ffpyplayer

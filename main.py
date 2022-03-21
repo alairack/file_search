@@ -1,13 +1,14 @@
 import sys
 import os
 from PyQt5 import QtGui, QtWidgets, Qt, QtCore
-from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QMessageBox, QComboBox
+from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QMessageBox, QComboBox, QSizePolicy, QSplitter, QAbstractItemView
 import time
 import pickle
 import ctypes
 import resource
 import subprocess
 from functools import partial
+from preview_area import PreviewArea
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -44,33 +45,35 @@ class MainWindow(QtWidgets.QMainWindow):
         hbox_layout.addWidget(self.search_button, stretch=0, alignment=QtCore.Qt.AlignRight)
         hbox_layout.addStretch(10)
 
+        # 初始化table_widget
+        self.table_widget = ShowResultsTable()
+        self.table_widget.setColumnCount(4)
+        self.table_widget.setHorizontalHeaderLabels(["文件名", "路径", '创建时间', "修改时间"])
+        self.table_widget.doubleClicked.connect(self.table_widget.open_click_file)
+        self.table_widget.cellClicked.connect(self.preview_table_cell)
+        # 右键菜单策略
+        # self.table_widget.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.DefaultContextMenu)
+        # 下面的方法对于调整大小很重要
+        self.table_widget.horizontalHeader().resizeSections(QtWidgets.QHeaderView.Stretch)
+
+        self.preview_area = PreviewArea()
+        self.preview_area.hide()         # 默认隐藏
+
+        self.splitter = QSplitter()
+
+        self.splitter.addWidget(self.table_widget)
+        self.splitter.addWidget(self.preview_area)
+
         vbox_layout = QtWidgets.QVBoxLayout()
         vbox_layout.setSpacing(15)
         vbox_layout.addLayout(hbox_layout)
-
-        # 初始化table_widget
-        self.table_widget = ShowResultsTable()
-        self.table_widget.setRowCount(19)
-        self.table_widget.setColumnCount(4)
-        self.table_widget.setHorizontalHeaderLabels(["文件名", "路径", '创建时间', "修改时间"])
-
-        # 下面的方法对于调整大小很重要
-        self.table_widget.horizontalHeader().resizeSections(QtWidgets.QHeaderView.ResizeMode.Stretch)
-
-        self.table_widget.doubleClicked.connect(self.table_widget.open_click_file)
-        # 右键菜单策略
-        # self.table_widget.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.DefaultContextMenu)
+        vbox_layout.addWidget(self.splitter)
 
         widget = QtWidgets.QWidget()
         widget.setLayout(vbox_layout)
 
         self.statusBar().showMessage("0个对象")
 
-        self.hbox_layout2 = QtWidgets.QHBoxLayout()
-        self.hbox_layout2.addWidget(self.table_widget)
-        self.hbox_layout2.addSpacing(400)
-
-        vbox_layout.addLayout(self.hbox_layout2)
         self.setCentralWidget(widget)
         self.history = History(self.combobox)
         self.search_path = None
@@ -96,6 +99,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def file_search_finish(self):
         self.table_widget.clearContents()
+        self.table_widget.setRowCount(0)
         if len(self.file_search_thread.result) > self.table_widget.rowCount():
             self.table_widget.setRowCount(len(self.file_search_thread.result))
         for i, info_list in enumerate(self.file_search_thread.result):
@@ -108,7 +112,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.table_widget.setItem(i, j, table_cell)
         self.statusBar().showMessage(f"{len(self.file_search_thread.result)}个对象")
         self.search_button.setText("搜索")
-        self.table_widget.horizontalHeader().resizeSections(QtWidgets.QHeaderView.ResizeMode.Stretch)
+        self.table_widget.horizontalHeader().resizeSections(QtWidgets.QHeaderView.Stretch)
         self.search_button.setEnabled(True)
         self.file_search_thread.is_running = False
 
@@ -122,15 +126,33 @@ class MainWindow(QtWidgets.QMainWindow):
             if self.file_search_thread.is_running:
                 self.file_search_thread.is_running = False
 
+    def preview_table_cell(self, row, col):
+        if col == 0:
+            try:
+                file_name = self.table_widget.item(row, col).text()
+            except Exception:
+                pass
+            else:
+                file_name_extension = file_name.split(".")[-1]
+                if file_name_extension in self.preview_area.support_formats["text"]:
+                    self.preview_area.show_text(self.table_widget.item(row, 1).text())
+                elif file_name_extension in self.preview_area.support_formats["image"]:
+                    self.preview_area.show_image(self.table_widget.item(row, 1).text())
+                elif file_name_extension == self.preview_area.support_formats["video"]:
+                    self.preview_area.open_video(self.table_widget.item(row, 1).text())
 
-class ShowResultsTable(QtWidgets.QTableWidget):
+
+class ShowResultsTable(QTableWidget):
     def __init__(self):
         super(ShowResultsTable, self).__init__()
 
+        self.setShowGrid(False)
         self.verticalHeader().setVisible(False)
-        self.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Interactive)
+        self.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Interactive)
         self.horizontalHeader().setStretchLastSection(True)
         self.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+        self.setSelectionMode(QAbstractItemView.NoSelection)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
     def open_click_file(self, index):
         row = index.row()

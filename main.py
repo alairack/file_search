@@ -1,7 +1,8 @@
 import sys
 import os
 from PyQt5 import QtGui, QtWidgets, Qt, QtCore
-from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QMessageBox, QComboBox, QSizePolicy, QSplitter, QAbstractItemView
+from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QMessageBox, QComboBox, QSizePolicy, QSplitter, \
+    QAbstractItemView
 import time
 import pickle
 import ctypes
@@ -15,7 +16,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, parent):
         super().__init__(parent=parent)
 
-        self.setWindowTitle("file search")
+        self.setWindowTitle("File Search")
         self.resize(1000, 800)
 
         self.search_frame = QtWidgets.QLineEdit()
@@ -72,11 +73,14 @@ class MainWindow(QtWidgets.QMainWindow):
         widget = QtWidgets.QWidget()
         widget.setLayout(vbox_layout)
 
-        self.statusBar().showMessage("0个对象")
+        self.search_path = "/"
+        self.info_number = 0
+
+        self.update_statusbar()
 
         self.setCentralWidget(widget)
         self.history = History(self.combobox)
-        self.search_path = None
+
         self.file_search_thread = None
 
     def click_search_button(self):
@@ -96,6 +100,9 @@ class MainWindow(QtWidgets.QMainWindow):
         dir_choose = QtWidgets.QFileDialog.getExistingDirectory(self, "选取搜索文件夹")
         if dir_choose != "":
             self.search_path = dir_choose
+        else:
+            self.search_path = "/"
+        self.update_statusbar()
 
     def file_search_finish(self):
         self.table_widget.clearContents()
@@ -110,7 +117,9 @@ class MainWindow(QtWidgets.QMainWindow):
                     file_icon = QtWidgets.QFileIconProvider().icon(QtCore.QFileInfo(info_list[1]))
                     table_cell.setIcon(file_icon)
                 self.table_widget.setItem(i, j, table_cell)
-        self.statusBar().showMessage(f"{len(self.file_search_thread.result)}个对象")
+
+        self.info_number = len(self.file_search_thread.result)
+        self.update_statusbar()
         self.search_button.setText("搜索")
         self.table_widget.horizontalHeader().resizeSections(QtWidgets.QHeaderView.Stretch)
         self.search_button.setEnabled(True)
@@ -122,6 +131,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def closeEvent(self, event):
         event.accept()
+        if self.preview_area.video_player is not None:
+            self.preview_area.video_player.close()
         if self.file_search_thread is not None:
             if self.file_search_thread.is_running:
                 self.file_search_thread.is_running = False
@@ -138,8 +149,14 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.preview_area.show_text(self.table_widget.item(row, 1).text())
                 elif file_name_extension in self.preview_area.support_formats["image"]:
                     self.preview_area.show_image(self.table_widget.item(row, 1).text())
-                elif file_name_extension == self.preview_area.support_formats["video"]:
+                elif file_name_extension in self.preview_area.support_formats["video"]:
                     self.preview_area.open_video(self.table_widget.item(row, 1).text())
+
+    def update_statusbar(self):
+        """
+        更新状态栏以显示最新信息数量及搜索路径
+        """
+        self.statusBar().showMessage(f"{self.info_number}个对象       {self.search_path}")
 
 
 class ShowResultsTable(QTableWidget):

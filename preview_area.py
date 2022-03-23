@@ -53,10 +53,16 @@ class PreviewArea(QWidget):
     def get_support_formats(self):
         self.support_formats["image"] = []
         self.support_formats["video"] = []
+
         for i in QImageReader.supportedImageFormats():
             self.support_formats["image"].append(bytes(i).decode())
+
         video_support_formats = tools.get_fmts(False, True)[2]
-        self.support_formats["video"] = [x for x in video_support_formats if x]    # 去除列表空白元素
+        for x in video_support_formats:
+            if x:           # 去除列表空白元素
+                for y in x:         # 丢弃二维列表，方便搜索
+                    self.support_formats["video"].append(y)
+
         self.support_formats["text"] = ["txt", "ini", "doc", "docx"]
 
     def get_file_encoding(self, file_path):

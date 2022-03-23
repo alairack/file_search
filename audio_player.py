@@ -58,8 +58,10 @@ class MainWindow(QMainWindow):
         controls = QHBoxLayout()
         playlistCtrlLayout = QHBoxLayout()
 
-        playBtn = QPushButton('播放')
-        pauseBtn = QPushButton('暂停')
+        self.playBtn = QPushButton('播放')
+        self.pauseBtn = QPushButton('暂停')
+        self.rm_mediaBtn = QPushButton('移除此歌曲')
+        self.pauseBtn.hide()
 
         stopBtn = QPushButton('停止')
         volumeDescBtn = QPushButton('V (-)')
@@ -81,8 +83,9 @@ class MainWindow(QMainWindow):
         seekSliderLayout.addWidget(self.seekSlider)
         seekSliderLayout.addWidget(self.seekSliderLabel2)
 
-        playBtn.clicked.connect(self.playHandler)
-        pauseBtn.clicked.connect(self.pauseHandler)
+        self.playBtn.clicked.connect(self.playHandler)
+        self.pauseBtn.clicked.connect(self.pauseHandler)
+        self.rm_mediaBtn.clicked.connect(self.remove_current_audio)
         stopBtn.clicked.connect(self.stopHandler)
         volumeDescBtn.clicked.connect(self.decreaseVolume)
         volumeIncBtn.clicked.connect(self.increaseVolume)
@@ -90,8 +93,9 @@ class MainWindow(QMainWindow):
         nextBtn.clicked.connect(self.nextItemPlaylist)
 
         controls.addWidget(volumeDescBtn)
-        controls.addWidget(playBtn)
-        controls.addWidget(pauseBtn)
+        controls.addWidget(self.playBtn)
+        controls.addWidget(self.pauseBtn)
+        controls.addWidget(self.rm_mediaBtn)
         controls.addWidget(stopBtn)
         controls.addWidget(volumeIncBtn)
 
@@ -126,7 +130,6 @@ class MainWindow(QMainWindow):
 
     def stopHandler(self):
         self.userAction = 0
-        self.statusLabel.setText('停止播放  音量为 %d' % (self.player.volume()))
         if self.player.state() != QMediaPlayer.StoppedState:
             self.player.stop()
 
@@ -148,11 +151,23 @@ class MainWindow(QMainWindow):
 
     def qmp_stateChanged(self):
         # print(self.player.state())
-        if self.player.state() == QMediaPlayer.StoppedState:
-            self.player.stop()
-        elif self.player.state() == QMediaPlayer.PlayingState:
+        # 按钮显示和隐藏的顺序不能变，否则界面会自动拉伸
+        if self.player.state() == QMediaPlayer.PlayingState:
             file_path = self.player.currentMedia().canonicalUrl().toString()
             self.statusLabel.setText(f'正在播放 {file_path.split("///", 1)[1]}  音量: {self.player.volume()}')
+            self.playBtn.hide()
+            self.pauseBtn.show()
+
+        elif self.player.state() == QMediaPlayer.PausedState:
+            self.pauseBtn.hide()
+            self.playBtn.show()
+
+        elif self.player.state() == QMediaPlayer.StoppedState:
+            self.player.stop()
+            self.statusLabel.setText('停止播放  音量为 %d' % (self.player.volume()))
+
+            self.pauseBtn.hide()
+            self.playBtn.show()
 
     def qmp_positionChanged(self, position, sender_type=False):
         if not sender_type:
@@ -231,6 +246,13 @@ class MainWindow(QMainWindow):
             if self.player.mediaStatus() == QMediaPlayer.NoMedia:
                 self.player.setPlaylist(self.currentPlaylist)
             self.player.play()
+
+    def remove_current_audio(self):
+        if self.currentPlaylist.mediaCount() > 0:
+            self.currentPlaylist.removeMedia(self.currentPlaylist.currentIndex())
+            self.player.setPlaylist(self.currentPlaylist)
+        else:
+            pass
 
 
 if __name__ == '__main__':

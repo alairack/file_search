@@ -151,6 +151,10 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.preview_area.show_text(self.table_widget.item(row, 1).text())
                 elif file_name_extension in self.preview_area.support_formats["image"]:
                     self.preview_area.show_image(self.table_widget.item(row, 1).text())
+                elif file_name_extension in self.preview_area.support_formats["audio"]:
+                    self.preview_area.play_audio(self.table_widget.item(row, 1).text(), True)
+                elif file_name_extension in self.preview_area.support_formats["video"]:
+                    self.preview_area.open_video(self.table_widget.item(row, 1).text())
 
 
     def update_statusbar(self):
@@ -258,13 +262,20 @@ class FileSearchThread(QtCore.QRunnable):
         result = []
         if path is None:
             path = "/"
+        if name[0] == "." and len(name) > 1:
+            format_search = True
+            name = name[1:]
+        else:
+            format_search = False
         for root, folder, files in os.walk(path):
-            if not self.is_running:
-                break
             for file_name in files:
-                if name in file_name:
-                    if not self.is_running:
-                        break
+                if not self.is_running:
+                    break
+                if not format_search and name not in file_name:
+                    continue
+                elif format_search and name != file_name.split(".")[-1]:
+                    continue
+                else:
                     file_path = os.path.abspath(os.path.join(root, file_name))
 
                     stat_info = os.stat(file_path)

@@ -5,7 +5,7 @@ from PyQt5.QtMultimedia import *
 from PyQt5.QtCore import *
 
 
-class MainWindow(QMainWindow):
+class AudioPlayer(QMainWindow):
     def __init__(self):
         super().__init__()
 
@@ -24,11 +24,11 @@ class MainWindow(QMainWindow):
         centralWidget.setLayout(controlBar)
         self.setCentralWidget(centralWidget)
 
+        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+
         self.resize(200, 100)
-        self.show()
 
     def init_player(self):
-
         self.currentPlaylist = QMediaPlaylist()
         self.player = QMediaPlayer()
         self.player.setVolume(60)
@@ -125,7 +125,6 @@ class MainWindow(QMainWindow):
 
     def pauseHandler(self):
         self.userAction = 2
-        self.statusLabel.setText(f'暂停中  音量为 {self.player.volume()}')
         self.player.pause()
 
     def stopHandler(self):
@@ -159,6 +158,7 @@ class MainWindow(QMainWindow):
             self.pauseBtn.show()
 
         elif self.player.state() == QMediaPlayer.PausedState:
+            self.statusLabel.setText(f'暂停中  音量为 {self.player.volume()}')
             self.pauseBtn.hide()
             self.playBtn.show()
 
@@ -202,8 +202,7 @@ class MainWindow(QMainWindow):
         return open_file_action
 
     def openFile(self):
-        fileChoosen = QFileDialog.getOpenFileUrl(self, '选择音频文件', expanduser('~'), 'Audio (*.mp3 *.ogg *.wav)',
-                                                 '*.mp3 *.ogg *.wav')
+        fileChoosen = QFileDialog.getOpenFileUrl(self, '选择音频文件', "", '音频文件(*.mp3 *.ogg *.wav)')
         if fileChoosen is not None and fileChoosen[0].toString() is not "":
             self.currentPlaylist.addMedia(QMediaContent(fileChoosen[0]))
         else:
@@ -249,13 +248,17 @@ class MainWindow(QMainWindow):
 
     def remove_current_audio(self):
         if self.currentPlaylist.mediaCount() > 0:
-            self.currentPlaylist.removeMedia(self.currentPlaylist.currentIndex())
+            current_index = self.currentPlaylist.currentIndex()
+            self.currentPlaylist.removeMedia(current_index)
             self.player.setPlaylist(self.currentPlaylist)
+            if self.currentPlaylist.mediaCount() > 1:
+                self.currentPlaylist.setCurrentIndex(current_index)
+                self.player.pause()
         else:
             pass
 
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    wd = MainWindow()
+    wd = AudioPlayer()
     sys.exit(app.exec_())

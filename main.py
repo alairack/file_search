@@ -47,7 +47,7 @@ class MainWindow(QtWidgets.QMainWindow):
         hbox_layout.addStretch(10)
 
         # 初始化table_widget
-        self.table_widget = ShowResultsTable()
+        self.table_widget = ShowResultsTable(mainWindow=self)
         self.table_widget.setColumnCount(4)
         self.table_widget.setHorizontalHeaderLabels(["文件名", "路径", '创建时间', "修改时间"])
         self.table_widget.doubleClicked.connect(self.table_widget.open_click_file)
@@ -133,6 +133,8 @@ class MainWindow(QtWidgets.QMainWindow):
         event.accept()
         if self.preview_area.video_player is not None:
             self.preview_area.video_player.close()
+        if self.preview_area.audio_player is not None:
+            self.preview_area.audio_player.close()
         if self.file_search_thread is not None:
             if self.file_search_thread.is_running:
                 self.file_search_thread.is_running = False
@@ -149,8 +151,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.preview_area.show_text(self.table_widget.item(row, 1).text())
                 elif file_name_extension in self.preview_area.support_formats["image"]:
                     self.preview_area.show_image(self.table_widget.item(row, 1).text())
-                elif file_name_extension in self.preview_area.support_formats["video"]:
-                    self.preview_area.open_video(self.table_widget.item(row, 1).text())
+
 
     def update_statusbar(self):
         """
@@ -160,9 +161,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 class ShowResultsTable(QTableWidget):
-    def __init__(self):
+    def __init__(self, mainWindow):
         super(ShowResultsTable, self).__init__()
 
+        self.mainWindow = mainWindow
         self.setShowGrid(False)
         self.verticalHeader().setVisible(False)
         self.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Interactive)
@@ -201,9 +203,41 @@ class ShowResultsTable(QTableWidget):
         open_dir = QtWidgets.QAction("打开文件目录")
         open_dir.triggered.connect(partial(self.open_folder, index))
 
+        open_audio = QtWidgets.QAction("在音频播放器中播放")
+        open_audio.triggered.connect(partial(self.press_open_media, index, True))
+
+        add_audio_to_list = QtWidgets.QAction("添加到音频播放列表")
+        add_audio_to_list.triggered.connect(partial(self.press_open_media, index, False))
+
+        open_video = QtWidgets.QAction("在视频播放器中播放")
+        open_video.triggered.connect(partial(self.press_open_media, index))
+
         menu.addAction(default_open_file)
         menu.addAction(open_dir)
+        menu.addSeparator()
+
+        menu.addAction(open_audio)
+        menu.addAction(add_audio_to_list)
+        menu.addSeparator()
+
+        menu.addAction(open_video)
+
         menu.exec(event.globalPos())
+
+    def press_open_media(self, index, is_play_now=False):
+        col = index.column()
+        row = index.row()
+        if col == 0:
+            try:
+                file_name = self.item(row, col).text()
+            except Exception:
+                pass
+            else:
+                file_name_extension = file_name.split(".")[-1]
+                if file_name_extension in main_window.preview_area.support_formats["audio"]:
+                    main_window.preview_area.play_audio(self.item(row, 1).text(), is_play_now)
+                elif file_name_extension in main_window.preview_area.support_formats["video"]:
+                    main_window.preview_area.open_video(self.item(row, 1).text())
 
 
 class FileSearchThread(QtCore.QRunnable):

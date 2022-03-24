@@ -1,10 +1,12 @@
 from ffpyplayer import tools
 from PyQt5.QtGui import QIcon, QFont, QPixmap, QPainter, QImage, QPalette, QImageReader
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QUrl
 from PyQt5.QtPrintSupport import QPrintDialog, QPrinter
 from PyQt5.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QWidget, QLabel, QMainWindow, QAction, QMenu,
                              QScrollArea, QSizePolicy, QTextEdit)
+from PyQt5.QtMultimedia import QMediaContent
 from videoplayer import VideoPlayer
+from audio_player import AudioPlayer
 
 
 class PreviewArea(QWidget):
@@ -21,6 +23,9 @@ class PreviewArea(QWidget):
         self.text_viewer = QTextEdit()
         self.text_viewer.setReadOnly(True)
         self.text_viewer.hide()
+
+        self.audio_player = AudioPlayer()
+        self.audio_player.hide()
 
         self.hboxLayout = QHBoxLayout()
         self.hboxLayout.addWidget(self.image_viewer)
@@ -50,20 +55,32 @@ class PreviewArea(QWidget):
         self.image_viewer.hide()
         self.text_viewer.show()
 
+    def play_audio(self, path, play_immediately=False):
+        self.audio_player.currentPlaylist.addMedia(QMediaContent(QUrl.fromLocalFile(path)))
+        self.audio_player.player.setPlaylist(self.audio_player.currentPlaylist)
+        self.audio_player.currentPlaylist.setCurrentIndex(self.audio_player.currentPlaylist.mediaCount() - 1)
+        if play_immediately:
+            self.audio_player.show()
+            self.audio_player.player.play()
+
     def get_support_formats(self):
+        """
+        从ffpyplayer获取支持格式的方法
+                video_support_formats = tools.get_fmts(False, True)[2]
+                for x in video_support_formats:
+                    if x:           # 去除列表空白元素
+                        for y in x:         # 丢弃二维列表，方便搜索
+                            self.support_formats["video"].append(y)
+                """
+
         self.support_formats["image"] = []
-        self.support_formats["video"] = []
+        self.support_formats["video"] = ["mp4", "wmv", "avi", "flv", "3gp"]
 
         for i in QImageReader.supportedImageFormats():
             self.support_formats["image"].append(bytes(i).decode())
 
-        video_support_formats = tools.get_fmts(False, True)[2]
-        for x in video_support_formats:
-            if x:           # 去除列表空白元素
-                for y in x:         # 丢弃二维列表，方便搜索
-                    self.support_formats["video"].append(y)
-
         self.support_formats["text"] = ["txt", "ini", "doc", "docx"]
+        self.support_formats["audio"] = ["wav", "mp3"]
 
     def get_file_encoding(self, file_path):
         """

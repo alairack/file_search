@@ -22,11 +22,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.search_frame = QtWidgets.QLineEdit()
         self.search_frame.setAlignment(QtCore.Qt.AlignLeft)
 
-        self.search_button = QtWidgets.QPushButton("搜索")
-        self.search_button.clicked.connect(self.click_search_button)
-
         self.choose_search_dir_button = QtWidgets.QPushButton("选择路径")
         self.choose_search_dir_button.clicked.connect(self.choose_search_dir)
+
+        self.stop_button = QtWidgets.QPushButton("停止搜索")
+        self.stop_button.clicked.connect(self.stop_search)
+        self.stop_button.hide()
 
         self.combobox = QComboBox(self)
         self.combobox.setLineEdit(self.search_frame)
@@ -43,7 +44,7 @@ class MainWindow(QtWidgets.QMainWindow):
         hbox_layout = QtWidgets.QHBoxLayout()
         hbox_layout.addWidget(self.combobox, stretch=0, alignment=QtCore.Qt.AlignRight)
         hbox_layout.addWidget(self.choose_search_dir_button, alignment=QtCore.Qt.AlignRight)
-        hbox_layout.addWidget(self.search_button, stretch=0, alignment=QtCore.Qt.AlignRight)
+        hbox_layout.addWidget(self.stop_button, alignment=QtCore.Qt.AlignRight)
         hbox_layout.addStretch(10)
 
         # 初始化table_widget
@@ -74,7 +75,6 @@ class MainWindow(QtWidgets.QMainWindow):
         widget.setLayout(vbox_layout)
 
         self.search_path = "/"
-        self.info_number = 0
 
         self.update_statusbar()
 
@@ -82,19 +82,54 @@ class MainWindow(QtWidgets.QMainWindow):
         self.history = History(self.combobox)
 
         self.file_search_thread = None
+        self.update_timer = Qt.QTimer()
+        self.update_timer.setInterval(1000)
+        self.update_timer.timeout.connect(self.update_table)
 
-    def click_search_button(self):
-        self.search_button.setEnabled(False)
-        self.search_button.setText("正在搜索")
-        self.history.save_history(self.search_frame.text())
+    def start_search(self):
         file_name = self.search_frame.text()
         if file_name == "":
             QMessageBox.warning(self, "警告", "你还没有输入文件名", buttons=QMessageBox.Ok)
         else:
+            self.choose_search_dir_button.hide()
+            self.stop_button.show()
+            self.history.save_history(self.search_frame.text())
+
             self.threadpool = QtCore.QThreadPool()
             self.file_search_thread = FileSearchThread(file_name, self.search_path)
             self.threadpool.start(self.file_search_thread)
-            self.file_search_thread.signals.finished.connect(self.file_search_finish)
+            self.file_search_thread.signals.finished.connect(self.stop_search)
+
+            self.table_widget.clearContents()
+            self.table_widget.setRowCount(0)
+
+            self.update_timer.start()
+
+    def stop_search(self):
+        self.update_timer.stop()
+        self.file_search_thread.is_running = False
+        self.update_table()
+        self.stop_button.hide()
+        self.choose_search_dir_button.show()
+
+    def update_table(self):
+        current_resultCount = self.table_widget.rowCount()
+        self.table_widget.setRowCount(len(self.file_search_thread.result) + current_resultCount)
+        for info_list in self.file_search_thread.result:
+            for j, info in enumerate(info_list):
+                table_cell = QTableWidgetItem(info)
+                table_cell.setToolTip(info)
+                if j == 0:
+                    file_icon = QtWidgets.QFileIconProvider().icon(QtCore.QFileInfo(info_list[1]))
+                    table_cell.setIcon(file_icon)
+                self.table_widget.setItem(current_resultCount, j, table_cell)
+
+            current_resultCount = current_resultCount + 1
+
+        self.file_search_thread.result = []
+
+        self.update_statusbar()
+        self.table_widget.horizontalHeader().resizeSections(QtWidgets.QHeaderView.Stretch)
 
     def choose_search_dir(self):
         dir_choose = QtWidgets.QFileDialog.getExistingDirectory(self, "选取搜索文件夹")
@@ -103,27 +138,6 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.search_path = "/"
         self.update_statusbar()
-
-    def file_search_finish(self):
-        self.table_widget.clearContents()
-        self.table_widget.setRowCount(0)
-        if len(self.file_search_thread.result) > self.table_widget.rowCount():
-            self.table_widget.setRowCount(len(self.file_search_thread.result))
-        for i, info_list in enumerate(self.file_search_thread.result):
-            for j, info in enumerate(info_list):
-                table_cell = QTableWidgetItem(info)
-                table_cell.setToolTip(info)
-                if j == 0:
-                    file_icon = QtWidgets.QFileIconProvider().icon(QtCore.QFileInfo(info_list[1]))
-                    table_cell.setIcon(file_icon)
-                self.table_widget.setItem(i, j, table_cell)
-
-        self.info_number = len(self.file_search_thread.result)
-        self.update_statusbar()
-        self.search_button.setText("搜索")
-        self.table_widget.horizontalHeader().resizeSections(QtWidgets.QHeaderView.Stretch)
-        self.search_button.setEnabled(True)
-        self.file_search_thread.is_running = False
 
     def choose_history(self, event):
         choose_text = self.combobox.itemText(event)
@@ -141,8 +155,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Return or event.key() == QtCore.Qt.Key_Enter:
-            if len(self.search_frame.text()) > 0:
-                self.click_search_button()
+            self.start_search()
 
     def preview_table_cell(self, row, col):
         if col == 0:
@@ -161,12 +174,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 elif file_name_extension in self.preview_area.support_formats["video"]:
                     self.preview_area.open_video(self.table_widget.item(row, 1).text())
 
-
     def update_statusbar(self):
         """
         更新状态栏以显示最新信息数量及搜索路径
         """
-        self.statusBar().showMessage(f"{self.info_number}个对象       {self.search_path}")
+        self.statusBar().showMessage(f"{self.table_widget.rowCount()}个对象       {self.search_path}")
 
 
 class ShowResultsTable(QTableWidget):
@@ -260,11 +272,11 @@ class FileSearchThread(QtCore.QRunnable):
 
     @QtCore.pyqtSlot()
     def run(self):
-        self.result = self.search_file(self.file_name, self.search_path)
+        self.result = []
+        self.search_file(self.file_name, self.search_path)
         self.signals.finished.emit()
 
     def search_file(self, name, path):
-        result = []
         if path is None:
             path = "/"
         if name[0] == "." and len(name) > 1:
@@ -289,8 +301,7 @@ class FileSearchThread(QtCore.QRunnable):
                     create_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(stat_info.st_ctime))
                     modif_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(stat_info.st_mtime))
 
-                    result.append([file_name, file_path, create_time, modif_time])  # 保存路径与盘符
-        return result
+                    self.result.append([file_name, file_path, create_time, modif_time])  # 保存路径与盘符
 
 
 class History(object):

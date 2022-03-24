@@ -139,6 +139,11 @@ class MainWindow(QtWidgets.QMainWindow):
             if self.file_search_thread.is_running:
                 self.file_search_thread.is_running = False
 
+    def keyPressEvent(self, event):
+        if event.key() == QtCore.Qt.Key_Return or event.key() == QtCore.Qt.Key_Enter:
+            if len(self.search_frame.text()) > 0:
+                self.click_search_button()
+
     def preview_table_cell(self, row, col):
         if col == 0:
             try:

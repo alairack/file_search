@@ -23,15 +23,17 @@ class MainWindow(QtWidgets.QMainWindow):
         self.search_frame.setAlignment(QtCore.Qt.AlignLeft)
 
         self.choose_search_dir_button = QtWidgets.QPushButton("选择路径")
+        self.choose_search_dir_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.choose_search_dir_button.clicked.connect(self.choose_search_dir)
 
         self.stop_button = QtWidgets.QPushButton("停止搜索")
         self.stop_button.clicked.connect(self.stop_search)
+        self.stop_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.stop_button.hide()
 
         self.combobox = QComboBox(self)
         self.combobox.setLineEdit(self.search_frame)
-        self.combobox.setMinimumWidth(self.width()-60)
+        self.combobox.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Maximum)
         self.combobox.setMinimumHeight(26)
         self.combobox.setCompleter(None)
         self.combobox.activated.connect(self.choose_history)
@@ -42,10 +44,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.combobox.setView(view)
 
         hbox_layout = QtWidgets.QHBoxLayout()
-        hbox_layout.addWidget(self.combobox, stretch=0, alignment=QtCore.Qt.AlignRight)
-        hbox_layout.addWidget(self.choose_search_dir_button, alignment=QtCore.Qt.AlignRight)
-        hbox_layout.addWidget(self.stop_button, alignment=QtCore.Qt.AlignRight)
-        hbox_layout.addStretch(10)
+        hbox_layout.addWidget(self.combobox)
+        hbox_layout.addWidget(self.choose_search_dir_button)
+        hbox_layout.addWidget(self.stop_button)
 
         # 初始化table_widget
         self.table_widget = ShowResultsTable(mainWindow=self)

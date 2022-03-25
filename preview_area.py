@@ -1,8 +1,7 @@
-from ffpyplayer import tools
-from PyQt5.QtGui import QIcon, QFont, QPixmap, QPainter, QImage, QPalette, QImageReader
+from PyQt5.QtGui import QPixmap, QPainter, QImage, QPalette, QImageReader
 from PyQt5.QtCore import Qt, QUrl
 from PyQt5.QtPrintSupport import QPrintDialog, QPrinter
-from PyQt5.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QWidget, QLabel, QMainWindow, QAction, QMenu,
+from PyQt5.QtWidgets import (QHBoxLayout, QWidget, QLabel, QMainWindow, QAction, QMenu,
                              QScrollArea, QSizePolicy, QTextEdit)
 from PyQt5.QtMultimedia import QMediaContent
 from videoplayer import VideoPlayer

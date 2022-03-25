@@ -72,6 +72,8 @@ class MainWindow(QtWidgets.QMainWindow):
         vbox_layout.addLayout(hbox_layout)
         vbox_layout.addWidget(self.splitter)
 
+        self.history = History(self.combobox)
+
         self.createMenu()
 
         self.statusLabel = QtWidgets.QLabel()
@@ -85,7 +87,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.update_statusbar()
 
         self.setCentralWidget(widget)
-        self.history = History(self.combobox)
 
         self.about_window = AboutWindow()
 
@@ -108,12 +109,17 @@ class MainWindow(QtWidgets.QMainWindow):
         view_menu.addAction(preview_area_action)
         view_menu.addAction(audio_player_action)
 
+        history_limit = HistoryLimitAction(self)
+        setting_menu = menu.addMenu("设置")
+        setting_menu.addAction(history_limit)
+
         about_action = QAction("关于", self)
         about_action.setIcon(self.style().standardIcon(Qt.QStyle.SP_MessageBoxInformation))
         about_action.triggered.connect(self.show_about_window)
 
         about_menu = menu.addMenu('关于')
         about_menu.addAction(about_action)
+
 
     def start_search(self):
         file_name = self.search_frame.text()
@@ -186,6 +192,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.file_search_thread is not None:
             if self.file_search_thread.is_running:
                 self.file_search_thread.is_running = False
+        if self.about_window is not None:
+            self.about_window.close()
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Return or event.key() == QtCore.Qt.Key_Enter:
@@ -353,12 +361,15 @@ class FileSearchThread(QtCore.QRunnable):
 class History(object):
     def __init__(self, combobox):
         self.history_number = None
-        self.max_history_number = 20
+
         appdata_path = os.getenv("APPDATA")
         self.app_dir_path = os.path.join(appdata_path, "file_search")
         self.history_file_path = os.path.join(self.app_dir_path, "history.pickle")
+        self.limit_setting_path = os.path.join(self.app_dir_path, "history_limit.ini")
+
         self.combobox = combobox
         self.init_combobox()
+        self.history_limit = self.read_history_limit()
 
     def init_combobox(self):
         history = self.read_history()
@@ -370,7 +381,7 @@ class History(object):
         if current_history is None:
             current_history = [text]
         else:
-            if self.history_number == self.max_history_number:
+            if self.history_number == self.history_limit:
                 current_history.pop(-1)
             current_history.insert(0, text)
         self.combobox.clear()
@@ -395,6 +406,25 @@ class History(object):
                 except EOFError:
                     return None
             return file_data
+
+    def save_history_limit(self, limit):
+        with open(self.limit_setting_path, "w") as f:
+            f.write(str(limit))
+        self.history_limit = limit
+
+    def read_history_limit(self):
+        if not os.path.isfile(self.limit_setting_path):
+            self.save_history_limit(20)
+            return 20
+        else:
+            with open(self.limit_setting_path, "r") as f:
+                content = f.read()
+            if content != "":
+                limit = int(content)
+                return limit
+            else:
+                self.save_history_limit(20)
+                return 20
 
 
 class Signals(QtCore.QObject):
@@ -432,6 +462,24 @@ class AboutWindow(QtWidgets.QWidget):
         self.controlLayout.addSpacing(20)
         self.controlLayout.addWidget(self.textLabel)
         self.setLayout(self.controlLayout)
+
+
+class HistoryLimitAction(QtWidgets.QWidgetAction):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.widget = QtWidgets.QWidget()
+        self.hbox_layout = QtWidgets.QHBoxLayout()
+        self.label = QtWidgets.QLabel("存储历史记录条数")
+        self.spinbox = QtWidgets.QSpinBox()
+        self.spinbox.setMaximum(40)
+        self.spinbox.setValue(self.parent().history.history_limit)
+        self.spinbox.valueChanged.connect(self.parent().history.save_history_limit)
+
+        self.hbox_layout.addWidget(self.label)
+        self.hbox_layout.addWidget(self.spinbox)
+        self.widget.setLayout(self.hbox_layout)
+        self.setDefaultWidget(self.widget)
 
 
 if __name__ == "__main__":

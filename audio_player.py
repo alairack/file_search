@@ -1,8 +1,8 @@
 import sys
-from os.path import expanduser
-from PyQt5.QtWidgets import *
-from PyQt5.QtMultimedia import *
-from PyQt5.QtCore import *
+from PyQt5.QtCore import Qt
+from PyQt5.QtMultimedia import QMediaPlaylist, QMediaPlayer, QMediaContent
+from PyQt5.QtWidgets import QMainWindow, QWidget, QSizePolicy, QLabel, QVBoxLayout, QHBoxLayout, QPushButton, QSlider, \
+    QAction, QFileDialog, QMessageBox, QApplication
 
 
 class AudioPlayer(QMainWindow):

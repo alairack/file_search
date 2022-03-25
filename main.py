@@ -21,6 +21,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.search_frame = QtWidgets.QLineEdit()
         self.search_frame.setAlignment(QtCore.Qt.AlignLeft)
+        self.search_frame.setFont(Qt.QFont("Segoe UI", 12))
 
         self.choose_search_dir_button = QtWidgets.QPushButton("选择路径")
         self.choose_search_dir_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
@@ -83,28 +84,28 @@ class MainWindow(QtWidgets.QMainWindow):
         self.history = History(self.combobox)
 
         self.file_search_thread = None
+        self.is_reading_results = False
         self.update_timer = Qt.QTimer()
-        self.update_timer.setInterval(1000)
+        self.update_timer.setInterval(1500)
         self.update_timer.timeout.connect(self.update_table)
 
     def start_search(self):
         file_name = self.search_frame.text()
         if file_name == "":
-            QMessageBox.warning(self, "警告", "你还没有输入文件名", buttons=QMessageBox.Ok)
-        else:
-            self.choose_search_dir_button.hide()
-            self.stop_button.show()
-            self.history.save_history(self.search_frame.text())
+            self.update_timer.setInterval(5)          # 在搜索结果数量非常庞大时，应快速更新，否则界面十分卡顿
+        self.choose_search_dir_button.hide()
+        self.stop_button.show()
+        self.history.save_history(self.search_frame.text())
 
-            self.threadpool = QtCore.QThreadPool()
-            self.file_search_thread = FileSearchThread(file_name, self.search_path)
-            self.threadpool.start(self.file_search_thread)
-            self.file_search_thread.signals.finished.connect(self.stop_search)
+        self.threadpool = QtCore.QThreadPool()
+        self.file_search_thread = FileSearchThread(file_name, self.search_path)
+        self.threadpool.start(self.file_search_thread)
+        self.file_search_thread.signals.finished.connect(self.stop_search)
 
-            self.table_widget.clearContents()
-            self.table_widget.setRowCount(0)
+        self.table_widget.clearContents()
+        self.table_widget.setRowCount(0)
 
-            self.update_timer.start()
+        self.update_timer.start()
 
     def stop_search(self):
         self.update_timer.stop()
@@ -114,6 +115,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.choose_search_dir_button.show()
 
     def update_table(self):
+        if self.is_reading_results:
+            return
+        else:
+            self.is_reading_results = True
         current_resultCount = self.table_widget.rowCount()
         self.table_widget.setRowCount(len(self.file_search_thread.result) + current_resultCount)
         for info_list in self.file_search_thread.result:
@@ -128,6 +133,7 @@ class MainWindow(QtWidgets.QMainWindow):
             current_resultCount = current_resultCount + 1
 
         self.file_search_thread.result = []
+        self.is_reading_results = False
 
         self.update_statusbar()
         self.table_widget.horizontalHeader().resizeSections(QtWidgets.QHeaderView.Stretch)
@@ -194,6 +200,8 @@ class ShowResultsTable(QTableWidget):
         self.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
         self.setSelectionMode(QAbstractItemView.NoSelection)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        self.setSortingEnabled(True)
 
     def open_click_file(self, index):
         row = index.row()
@@ -280,7 +288,7 @@ class FileSearchThread(QtCore.QRunnable):
     def search_file(self, name, path):
         if path is None:
             path = "/"
-        if name[0] == "." and len(name) > 1:
+        if len(name) > 1 and name[0] == ".":
             format_search = True
             name = name[1:]
         else:

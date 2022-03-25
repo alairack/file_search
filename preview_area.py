@@ -18,6 +18,7 @@ class PreviewArea(QWidget):
         self.get_support_formats()
 
         self.video_player = None
+
         self.image_viewer = ImageViewer()
         self.image_viewer.hide()
         self.text_viewer = QTextEdit()
@@ -25,9 +26,9 @@ class PreviewArea(QWidget):
         self.text_viewer.hide()
 
         self.audio_player = AudioPlayer()
-        self.audio_player.hide()
 
         self.hboxLayout = QHBoxLayout()
+
         self.hboxLayout.addWidget(self.image_viewer)
         self.hboxLayout.addWidget(self.text_viewer)
         self.setLayout(self.hboxLayout)
@@ -35,12 +36,10 @@ class PreviewArea(QWidget):
     def show_image(self, image_path):
         self.image_viewer.open(image_path)
         self.text_viewer.hide()
-        self.show()
         self.image_viewer.show()
 
     def open_video(self, video_path):
         self.video_player = VideoPlayer(video_path)
-        self.show()
         self.video_player.show()
 
     def show_text(self, text_file_path):
@@ -51,7 +50,6 @@ class PreviewArea(QWidget):
             content = f.read()
 
         self.text_viewer.setText(content)
-        self.show()
         self.image_viewer.hide()
         self.text_viewer.show()
 
@@ -60,7 +58,6 @@ class PreviewArea(QWidget):
         self.audio_player.player.setPlaylist(self.audio_player.currentPlaylist)
         self.audio_player.currentPlaylist.setCurrentIndex(self.audio_player.currentPlaylist.mediaCount() - 1)
         if play_immediately:
-            self.audio_player.show()
             self.audio_player.player.play()
 
     def get_support_formats(self):

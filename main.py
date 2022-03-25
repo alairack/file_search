@@ -2,7 +2,7 @@ import sys
 import os
 from PyQt5 import QtGui, QtWidgets, Qt, QtCore
 from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QMessageBox, QComboBox, QSizePolicy, QSplitter, \
-    QAbstractItemView
+    QAbstractItemView, QAction, QLineEdit
 import time
 import pickle
 import ctypes
@@ -61,7 +61,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.table_widget.horizontalHeader().resizeSections(QtWidgets.QHeaderView.Stretch)
 
         self.preview_area = PreviewArea()
-        self.preview_area.hide()         # 默认隐藏
 
         self.splitter = QSplitter()
 
@@ -73,6 +72,11 @@ class MainWindow(QtWidgets.QMainWindow):
         vbox_layout.addLayout(hbox_layout)
         vbox_layout.addWidget(self.splitter)
 
+        self.createMenu()
+
+        self.statusLabel = QtWidgets.QLabel()
+        self.statusBar().addPermanentWidget(self.statusLabel, stretch=1)
+
         widget = QtWidgets.QWidget()
         widget.setLayout(vbox_layout)
 
@@ -83,19 +87,42 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(widget)
         self.history = History(self.combobox)
 
+        self.about_window = AboutWindow()
+
         self.file_search_thread = None
         self.is_reading_results = False
         self.update_timer = Qt.QTimer()
         self.update_timer.setInterval(1500)
         self.update_timer.timeout.connect(self.update_table)
 
+    def createMenu(self):
+        menu = self.menuBar()
+
+        statusBar_action = ViewAction("状态栏", self, self.switching_display_state, self.statusBar())
+        preview_area_action = ViewAction("预览区域", self, self.switching_display_state, self.preview_area)
+        audio_player_action = ViewAction("音频预览器", self, self.switching_display_state, self.preview_area.audio_player)
+        audio_player_action.setChecked(False)
+
+        view_menu = menu.addMenu("视图")
+        view_menu.addAction(statusBar_action)
+        view_menu.addAction(preview_area_action)
+        view_menu.addAction(audio_player_action)
+
+        about_action = QAction("关于", self)
+        about_action.setIcon(self.style().standardIcon(Qt.QStyle.SP_MessageBoxInformation))
+        about_action.triggered.connect(self.show_about_window)
+
+        about_menu = menu.addMenu('关于')
+        about_menu.addAction(about_action)
+
     def start_search(self):
         file_name = self.search_frame.text()
         if file_name == "":
             self.update_timer.setInterval(5)          # 在搜索结果数量非常庞大时，应快速更新，否则界面十分卡顿
+        else:
+            self.history.save_history(self.search_frame.text())
         self.choose_search_dir_button.hide()
         self.stop_button.show()
-        self.history.save_history(self.search_frame.text())
 
         self.threadpool = QtCore.QThreadPool()
         self.file_search_thread = FileSearchThread(file_name, self.search_path)
@@ -185,7 +212,17 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         更新状态栏以显示最新信息数量及搜索路径
         """
-        self.statusBar().showMessage(f"{self.table_widget.rowCount()}个对象       {self.search_path}")
+        self.statusLabel.setText(f"{self.table_widget.rowCount()}个对象       {self.search_path}")
+
+    def switching_display_state(self, event, widget):
+        if widget is not None:
+            if event:
+                widget.show()
+            else:
+                widget.hide()
+
+    def show_about_window(self):
+        self.about_window.show()
 
 
 class ShowResultsTable(QTableWidget):
@@ -362,6 +399,39 @@ class History(object):
 
 class Signals(QtCore.QObject):
     finished = QtCore.pyqtSignal()
+
+
+class ViewAction(QAction):
+    def __init__(self, text, parent, method, widget):
+        super().__init__(text, parent)
+        self.setCheckable(True)
+        self.setChecked(True)
+        self.triggered.connect(partial(method, widget=widget))
+
+
+class AboutWindow(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle("关于File Search")
+
+        self.controlLayout = QtWidgets.QHBoxLayout()
+
+        about_text = "  File Search <br><br>   版本1.0.0 <br><br>   By alairack <br><br>   许可证:GPL 3.0 <br><br>   <a href=\"https://github.com/alairack/file_search\">github项目地址</a>"
+
+        self.textLabel = QtWidgets.QLabel()
+        self.textLabel.setFont(QtGui.QFont("SimSun", 11))
+        self.textLabel.setTextFormat(QtCore.Qt.RichText)
+        self.textLabel.setText(about_text)
+        self.textLabel.setOpenExternalLinks(True)
+
+        self.logoLabel = QtWidgets.QLabel()
+        self.logoLabel.setPixmap(QtGui.QPixmap(":/icons/logo.ico").scaled(Qt.QSize(100, 100), QtCore.Qt.KeepAspectRatio))
+
+        self.controlLayout.addWidget(self.logoLabel)
+        self.controlLayout.addSpacing(20)
+        self.controlLayout.addWidget(self.textLabel)
+        self.setLayout(self.controlLayout)
 
 
 if __name__ == "__main__":

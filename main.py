@@ -67,6 +67,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.splitter.addWidget(self.table_widget)
         self.splitter.addWidget(self.preview_area)
 
+        self.splitter.setSizes([1, 0])
+
         vbox_layout = QtWidgets.QVBoxLayout()
         vbox_layout.setSpacing(15)
         vbox_layout.addLayout(hbox_layout)
@@ -119,7 +121,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         about_menu = menu.addMenu('关于')
         about_menu.addAction(about_action)
-
 
     def start_search(self):
         file_name = self.search_frame.text()
@@ -208,8 +209,12 @@ class MainWindow(QtWidgets.QMainWindow):
             else:
                 file_name_extension = file_name.split(".")[-1]
                 if file_name_extension in self.preview_area.support_formats["text"]:
+                    if not self.preview_area.isHidden() and self.splitter.sizes()[1] == 0:
+                        self.splitter.setSizes([1, 1])
                     self.preview_area.show_text(self.table_widget.item(row, 1).text())
                 elif file_name_extension in self.preview_area.support_formats["image"]:
+                    if not self.preview_area.isHidden() and self.splitter.sizes()[1] == 0:
+                        self.splitter.setSizes([1, 1])
                     self.preview_area.show_image(self.table_widget.item(row, 1).text())
                 elif file_name_extension in self.preview_area.support_formats["audio"]:
                     self.preview_area.play_audio(self.table_widget.item(row, 1).text(), True)
